@@ -13,15 +13,19 @@ the cluster's genesis hash and refuses mainnet-beta.
 
 Built with the `cli` feature (`cargo run --features cli --bin crack-coin -- <subcommand>`):
 
-- `keygen` creates the devnet authority keypair (mode 0600 file; the key is never printed);
-- `address` prints the authority's public key;
-- `balance` shows the authority's devnet SOL;
-- `create-mint` creates the CrackCoin mint (decimals 0, no freeze authority);
-- `set-metadata` creates or updates the token metadata (name, symbol, uri);
-- `mint` mints an amount to an owner's associated token account.
+- `keygen <path>` creates the devnet authority keypair (mode 0600 file, never overwritten; only
+  the public key is printed);
+- `airdrop <keypair> [sol=1]` requests devnet SOL for the authority;
+- `create-mint <keypair>` creates the CrackCoin mint (decimals 0, no freeze authority) and prints it;
+- `set-metadata <keypair> <mint> [uri]` creates or updates the token metadata (name, symbol, uri;
+  the uri defaults to the one in `assets/crackcoin.json` on GitHub);
+- `info <keypair> <mint>` prints SOL, supply, decimals, whether the authority matches, and the
+  on-chain metadata if there is any.
 
-Environment: `CRACK_COIN_KEYPAIR` (Solana CLI JSON), `CRACK_COIN_MINT` (base58) and the optional
-`CRACK_COIN_RPC_URL` (default `https://api.devnet.solana.com`).
+Every subcommand takes `--url <rpc>` (default `https://api.devnet.solana.com`). Minting to members
+is done by the bot through the library (`Coin::prepare_mint`), not by the CLI.
+
+The token's logo and metadata JSON are in `assets/`.
 
 ## Tests and fixtures
 
