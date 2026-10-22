@@ -22,13 +22,10 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["raw_value"] }
 sha2 = "0.10"
 thiserror = "2"
-tokio = { version = "1", features = ["macros", "rt-multi-thread"], optional = true }
-
-[dev-dependencies]
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
 
 [features]
-cli = ["dep:tokio", "dep:getrandom"]
+cli = ["dep:getrandom"]
 
 [[bin]]
 name = "crack-coin"

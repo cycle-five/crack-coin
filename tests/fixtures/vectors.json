@@ -48,6 +48,12 @@
     "address": "13KoHDCDXebtaN59JpGpQCmhsk8u7qk9H9FFSCMyynLh",
     "bump": 255
   },
+  "ata_low_bump": {
+    "owner": "8SFqwqnq4whPhs8icwHA2hQg3hUoN1qrCLK1SBx3WKwe",
+    "mint": "GyGKxMyg1p9SsHfm15MkNUu1u9TN2JtTspcdmrtGUdse",
+    "address": "At1rF721XsMQpt1gH8orBJ6cS3oniW5SjbudVgyrc2GV",
+    "bump": 248
+  },
   "metadata_address": {
     "mint": "GyGKxMyg1p9SsHfm15MkNUu1u9TN2JtTspcdmrtGUdse",
     "address": "H8pXsNTmVfo2RF7qQ39xGwzGyhNRhHvHhWny5FB7qA6h",
