@@ -1,12 +1,11 @@
 //! The CrackCoin operator CLI. It prints only public data: keys, signatures, balances and
 //! metadata. The signing key is read from a file and never shown.
 
+#[cfg(unix)]
 use std::path::Path;
 use std::process::ExitCode;
 
-use crack_coin::coin::{
-    check_mint, create_mint, read_metadata, set_metadata, wait_for, write_keypair_file,
-};
+use crack_coin::coin::{check_mint, create_mint, read_metadata, set_metadata, wait_for};
 use crack_coin::{
     metadata_address, Devnet, Error, Keypair, MintAccount, Pubkey, TokenInfo, TxStatus,
     DEFAULT_RPC_URL, METADATA_URI, NAME, SYMBOL,
@@ -52,11 +51,15 @@ async fn run(args: Vec<String>) -> Result<(), String> {
     let cmd = it.next().ok_or(USAGE)?;
     let rest: Vec<&str> = it.collect();
     match (cmd, rest.as_slice()) {
+        #[cfg(not(unix))]
+        ("keygen", [_]) => return Err("keygen needs a unix system".into()),
+        #[cfg(unix)]
         ("keygen", [path]) => {
             let mut seed = [0u8; 32];
             getrandom::fill(&mut seed).map_err(|_| "no randomness available".to_string())?;
             let kp = Keypair::from_seed(seed);
-            write_keypair_file(Path::new(path), &kp).map_err(|e| e.to_string())?;
+            crack_coin::coin::write_keypair_file(Path::new(path), &kp)
+                .map_err(|e| e.to_string())?;
             println!("{}", kp.pubkey());
         },
         ("airdrop", [keypair, tail @ ..]) if tail.len() <= 1 => {
@@ -88,10 +91,11 @@ async fn run(args: Vec<String>) -> Result<(), String> {
             let mut seed = [0u8; 32];
             getrandom::fill(&mut seed).map_err(|_| "no randomness available".to_string())?;
             let mint = Keypair::from_seed(seed);
+            // Print the mint first: a transient error while waiting must not lose the only record.
+            println!("mint: {} (sending...)", mint.pubkey());
             let sig = create_mint(&devnet, &kp, &mint)
                 .await
                 .map_err(|e| e.to_string())?;
-            println!("mint {}", mint.pubkey());
             println!("signature {sig}");
         },
         ("set-metadata", [keypair, mint, tail @ ..]) if tail.len() <= 1 => {

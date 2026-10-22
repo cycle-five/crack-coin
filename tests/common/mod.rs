@@ -83,6 +83,7 @@ pub struct Vectors {
     pub blockhash: String,
     pub on_curve: Vec<OnCurve>,
     pub ata: Ata,
+    pub ata_low_bump: Ata,
     pub metadata_address: MetadataAddress,
     pub mint_tx: MintTx,
     pub create_mint_tx: CreateMintTx,

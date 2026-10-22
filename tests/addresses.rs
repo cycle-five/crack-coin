@@ -32,6 +32,23 @@ fn ata_matches_spl_token() {
 }
 
 #[test]
+fn ata_with_a_low_bump_skips_on_curve_candidates() {
+    let a = vectors().ata_low_bump;
+    assert!(a.bump < 255);
+    let owner: Pubkey = a.owner.parse().unwrap();
+    let mint: Pubkey = a.mint.parse().unwrap();
+    assert_eq!(
+        associated_token_address(&owner, &mint).to_string(),
+        a.address
+    );
+    let (_, bump) = find_program_address(
+        &[&owner.0, &TOKEN_PROGRAM.0, &mint.0],
+        &ASSOCIATED_TOKEN_PROGRAM,
+    );
+    assert_eq!(bump, a.bump);
+}
+
+#[test]
 fn metadata_address_matches_mpl() {
     let m = vectors().metadata_address;
     let mint: Pubkey = m.mint.parse().unwrap();

@@ -11,6 +11,9 @@ use crate::{
     MINT_ACCOUNT_LEN, TOKEN_PROGRAM,
 };
 
+/// The size of an SPL token account.
+pub const TOKEN_ACCOUNT_LEN: usize = 165;
+
 /// How often [`wait_for`] asks the cluster.
 const POLL_EVERY: Duration = Duration::from_secs(2);
 
@@ -107,8 +110,15 @@ impl Coin {
     /// Whether `owner` already has a token account for this mint.
     pub async fn has_token_account(&self, owner: &Pubkey) -> Result<bool, Error> {
         let ata = associated_token_address(owner, &self.mint);
-        Ok(self.devnet.account_data(&ata).await?.is_some())
+        let data = self.devnet.account_data(&ata).await?;
+        Ok(is_token_account(data.as_deref()))
     }
+}
+
+/// Whether `data` is a token account: the account exists and is at least [`TOKEN_ACCOUNT_LEN`]
+/// bytes. A lamport-only account at the address has empty data and does not count.
+fn is_token_account(data: Option<&[u8]>) -> bool {
+    data.is_some_and(|d| d.len() >= TOKEN_ACCOUNT_LEN)
 }
 
 /// Polls every two seconds until the transaction landed or failed, or until it is provably gone:
@@ -119,10 +129,12 @@ pub async fn wait_for(
     last_valid_block_height: u64,
 ) -> Result<TxStatus, Error> {
     loop {
+        // Height first, then status (see `Devnet::finalized_block_height`).
+        let height = devnet.finalized_block_height().await?;
         match devnet.status(sig).await? {
             done @ (TxStatus::Landed | TxStatus::Failed(_)) => return Ok(done),
             TxStatus::NotFound => {
-                if devnet.finalized_block_height().await? > last_valid_block_height {
+                if height > last_valid_block_height {
                     return Ok(TxStatus::NotFound);
                 }
             },
@@ -193,6 +205,8 @@ pub async fn set_metadata(
 }
 
 /// Writes the keypair as Solana CLI JSON to a new file with mode 0600. Never overwrites.
+/// Unix only.
+#[cfg(unix)]
 pub fn write_keypair_file(path: &Path, kp: &Keypair) -> Result<(), Error> {
     use std::os::unix::fs::OpenOptionsExt;
     let io = |e: std::io::Error| Error::Io(e.kind().to_string());
@@ -234,4 +248,17 @@ pub fn read_metadata(data: &[u8]) -> Result<(String, String, String), Error> {
     let symbol = borsh_string(data, &mut at)?;
     let uri = borsh_string(data, &mut at)?;
     Ok((name, symbol, uri))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_a_full_size_account_is_a_token_account() {
+        assert!(!is_token_account(None));
+        assert!(!is_token_account(Some(&[])));
+        assert!(!is_token_account(Some(&[0u8; TOKEN_ACCOUNT_LEN - 1])));
+        assert!(is_token_account(Some(&[0u8; TOKEN_ACCOUNT_LEN])));
+    }
 }

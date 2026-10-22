@@ -131,6 +131,29 @@ fn status_with_err_is_failed_and_keeps_the_err_text() {
 }
 
 #[test]
+fn status_err_at_finalized_is_failed() {
+    let body = status_body(
+        r#"{"slot":1,"confirmations":null,"err":{"InstructionError":[0,"Custom"]},"confirmationStatus":"finalized"}"#,
+    );
+    assert!(matches!(parse_status(&body).unwrap(), TxStatus::Failed(_)));
+}
+
+#[test]
+fn status_err_at_processed_is_only_processed() {
+    let body = status_body(
+        r#"{"slot":1,"confirmations":0,"err":{"InstructionError":[0,"Custom"]},"confirmationStatus":"processed"}"#,
+    );
+    assert!(matches!(parse_status(&body).unwrap(), TxStatus::Processed));
+}
+
+#[test]
+fn status_err_without_a_confirmation_status_is_only_processed() {
+    let body =
+        status_body(r#"{"slot":1,"confirmations":0,"err":{"InstructionError":[0,"Custom"]}}"#);
+    assert!(matches!(parse_status(&body).unwrap(), TxStatus::Processed));
+}
+
+#[test]
 fn status_confirmed_is_landed() {
     for s in ["confirmed", "finalized"] {
         let body = status_body(&format!(
@@ -192,4 +215,50 @@ fn balance_and_numbers_parse() {
 #[test]
 fn http_errors_carry_only_the_status() {
     assert_eq!(http_status_error(429), "status 429");
+}
+
+fn string_body(value: &str) -> String {
+    format!(r#"{{"jsonrpc":"2.0","result":"{value}","id":1}}"#)
+}
+
+#[test]
+fn parse_hash_reads_a_genesis_hash() {
+    let h = Hash([7u8; 32]);
+    assert_eq!(parse_hash(&string_body(&h.to_string())).unwrap(), h);
+}
+
+#[test]
+fn parse_hash_rejects_a_malformed_value() {
+    assert!(matches!(
+        parse_hash(&string_body("not-a-hash!")),
+        Err(Error::Base58 | Error::Length { .. } | Error::Decode(_))
+    ));
+    assert!(matches!(
+        parse_hash(r#"{"jsonrpc":"2.0","result":42,"id":1}"#),
+        Err(Error::Decode(_))
+    ));
+}
+
+#[test]
+fn parse_genesis_refuses_mainnet_and_accepts_devnet() {
+    assert!(matches!(
+        parse_genesis(&string_body(crate::MAINNET_GENESIS)),
+        Err(Error::Mainnet)
+    ));
+    assert!(parse_genesis(&string_body(crate::DEVNET_GENESIS)).is_ok());
+}
+
+#[test]
+fn parse_signature_reads_a_send_or_airdrop_result() {
+    let s = Signature([9u8; 64]);
+    assert_eq!(parse_signature(&string_body(&s.to_string())).unwrap(), s);
+}
+
+#[test]
+fn parse_signature_rejects_a_malformed_value() {
+    assert!(parse_signature(&string_body("short")).is_err());
+    assert!(matches!(
+        parse_signature(r#"{"jsonrpc":"2.0","result":null,"id":1}"#),
+        Err(Error::Decode(_))
+    ));
 }

@@ -83,8 +83,9 @@ impl Keypair {
         Ok(kp)
     }
 
-    /// The CLI JSON text. Only `keygen` should call this.
-    pub fn secret_json(&self) -> String {
+    /// The CLI JSON text. Only `write_keypair_file` calls this.
+    #[cfg_attr(not(any(unix, test)), allow(dead_code))]
+    pub(crate) fn secret_json(&self) -> String {
         let mut all = self.0.to_bytes().to_vec();
         all.extend_from_slice(&self.pubkey().0);
         serde_json::to_string(&all).expect("a byte vector serializes")
@@ -102,5 +103,17 @@ impl Keypair {
 impl fmt::Debug for Keypair {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Keypair({})", self.pubkey())
+    }
+}
+
+#[cfg(test)]
+mod secret_json_tests {
+    use super::*;
+
+    #[test]
+    fn secret_json_round_trips() {
+        let kp = Keypair::from_seed([9u8; 32]);
+        let back = Keypair::from_json(&kp.secret_json()).unwrap();
+        assert_eq!(back.pubkey(), kp.pubkey());
     }
 }

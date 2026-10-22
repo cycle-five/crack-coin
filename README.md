@@ -27,6 +27,13 @@ is done by the bot through the library (`Coin::prepare_mint`), not by the CLI.
 
 The token's logo and metadata JSON are in `assets/`.
 
+## Security
+
+- The CLI never prints the secret key; the keypair file `keygen` writes is mode 0600 and is never
+  overwritten.
+- Solana keys are valid on every cluster. Never reuse a key that holds anything on mainnet.
+- This crate refuses mainnet RPC endpoints (by genesis hash).
+
 ## Tests and fixtures
 
 Every encoding test checks the Rust output against `tests/fixtures/vectors.json`, which is

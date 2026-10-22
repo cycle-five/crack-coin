@@ -15,11 +15,16 @@ use crate::{Error, Hash, Pubkey, Signature};
 pub const RPC_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Where a submitted transaction stands.
+///
+/// `Failed` is reported only when the error is `confirmed` or `finalized`. An error seen at
+/// `processed` (or with no confirmation level) can sit on a minority fork, and resending the same
+/// bytes may still land, so it is reported as `Processed`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TxStatus {
     /// Confirmed or finalized with no error.
     Landed,
-    /// The chain ran it and it errored; carries the chain's `err` payload as JSON text.
+    /// The chain ran it and it errored at `confirmed` or `finalized`; carries the chain's `err`
+    /// payload as JSON text.
     Failed(String),
     /// Seen, but not yet confirmed.
     Processed,
@@ -214,6 +219,13 @@ pub(crate) fn parse_hash(text: &str) -> Result<Hash, Error> {
     result::<String>(text)?.parse()
 }
 
+/// A genesis-hash response, refusing mainnet's.
+pub(crate) fn parse_genesis(text: &str) -> Result<Hash, Error> {
+    let hash = parse_hash(text)?;
+    refuse_mainnet(&hash)?;
+    Ok(hash)
+}
+
 pub(crate) fn parse_signature(text: &str) -> Result<Signature, Error> {
     result::<String>(text)?.parse()
 }
@@ -244,12 +256,14 @@ pub(crate) fn parse_status(text: &str) -> Result<TxStatus, Error> {
     let Some(s) = first else {
         return Ok(TxStatus::NotFound);
     };
-    if let Some(err) = s.err {
-        return Ok(TxStatus::Failed(err.get().to_owned()));
-    }
-    match s.confirmation_status.as_deref() {
-        Some("confirmed" | "finalized") => Ok(TxStatus::Landed),
-        _ => Ok(TxStatus::Processed),
+    let confirmed = matches!(
+        s.confirmation_status.as_deref(),
+        Some("confirmed" | "finalized")
+    );
+    match (s.err, confirmed) {
+        (Some(err), true) => Ok(TxStatus::Failed(err.get().to_owned())),
+        (None, true) => Ok(TxStatus::Landed),
+        (_, false) => Ok(TxStatus::Processed),
     }
 }
 
@@ -293,8 +307,9 @@ impl Devnet {
         resp.text().await.map_err(|e| Error::Http(kind(&e)))
     }
 
+    /// The cluster's genesis hash. Returns `Err(Error::Mainnet)` if it is mainnet-beta's.
     pub async fn genesis_hash(&self) -> Result<Hash, Error> {
-        parse_hash(&self.call(genesis_request()).await?)
+        parse_genesis(&self.call(genesis_request()).await?)
     }
 
     pub async fn balance(&self, of: &Pubkey) -> Result<u64, Error> {
@@ -314,6 +329,12 @@ impl Devnet {
         parse_latest_blockhash(&self.call(latest_blockhash_request()).await?)
     }
 
+    /// The finalized block height.
+    ///
+    /// Callers judging expiry must read this BEFORE [`Devnet::status`]: a load-balanced RPC pool
+    /// can serve a lagging node for one call and a fresh node for the other, so the other order
+    /// can show "not found" from a node that is ahead of the height read afterwards. Also apply a
+    /// safety margin to the comparison.
     pub async fn finalized_block_height(&self) -> Result<u64, Error> {
         parse_u64(&self.call(block_height_request()).await?)
     }
@@ -323,6 +344,8 @@ impl Devnet {
         parse_signature(&self.call(send_request(wire)).await?)
     }
 
+    /// Where `sig` stands. Callers judging expiry must read [`Devnet::finalized_block_height`]
+    /// BEFORE calling this (see there), and apply a safety margin.
     pub async fn status(&self, sig: &Signature) -> Result<TxStatus, Error> {
         parse_status(&self.call(status_request(sig)).await?)
     }

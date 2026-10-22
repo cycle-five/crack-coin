@@ -1,9 +1,12 @@
 mod common;
 
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
 use common::vectors;
-use crack_coin::coin::{check_mint, mint_transaction, read_metadata, write_keypair_file};
+#[cfg(unix)]
+use crack_coin::coin::write_keypair_file;
+use crack_coin::coin::{check_mint, mint_transaction, read_metadata};
 use crack_coin::*;
 use serde::Deserialize;
 
@@ -72,6 +75,7 @@ fn check_mint_names_each_mismatch() {
     assert!(check_mint(Some(&mint_bytes(&me, 0, 1)), &me).is_ok());
 }
 
+#[cfg(unix)]
 #[test]
 fn keypair_file_is_0600_and_never_overwritten() {
     let path = std::env::temp_dir().join(format!(

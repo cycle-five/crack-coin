@@ -37,7 +37,8 @@ async fn mint_round_trip() {
     seed[..16].copy_from_slice(&t.to_le_bytes());
     let owner = Keypair::from_seed(seed).pubkey();
     let prepared = coin.prepare_mint(&owner, 1).await.unwrap();
-    coin.devnet().send(&prepared.wire).await.unwrap();
+    let sent = coin.devnet().send(&prepared.wire).await.unwrap();
+    assert_eq!(sent, prepared.signature, "a signature is the tx id");
     let status = wait_for(
         coin.devnet(),
         &prepared.signature,

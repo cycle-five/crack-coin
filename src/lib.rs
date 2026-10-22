@@ -1,6 +1,19 @@
 //! CrackCoin: a worthless-by-design Solana devnet token for the CrackTunes Discord bot.
 //!
-//! This crate never talks to mainnet. The modules arrive task by task.
+//! The crate speaks raw JSON-RPC to Solana and hand-encodes its own transactions; it has no
+//! dependency on the `solana-*` crates. It refuses mainnet: [`Devnet::connect`] is the only way to
+//! get a client and it returns [`Error::Mainnet`] if the endpoint reports mainnet-beta's genesis
+//! hash.
+//!
+//! Main entry points:
+//! - [`Coin::open`] connects, verifies the mint and its authority, and then
+//!   [`Coin::prepare_mint`] signs a mint to a member, [`Devnet::send`] submits it, and
+//!   [`wait_for`] follows it to a [`TxStatus`]. [`Coin::has_token_account`] checks a member's
+//!   token account.
+//! - [`create_mint`] and [`set_metadata`] set the token up; [`check_mint`] verifies it.
+//! - [`Keypair`], [`Pubkey`], [`Signature`] and [`Hash`] are the key types.
+//!
+//! The `cli` feature builds the `crack-coin` binary (keygen, airdrop, create-mint, ...).
 
 pub mod address;
 pub mod cluster;
@@ -16,9 +29,11 @@ pub use address::{
     SYSTEM_PROGRAM, TOKEN_METADATA_PROGRAM, TOKEN_PROGRAM,
 };
 pub use cluster::{refuse_mainnet, DEFAULT_RPC_URL, DEVNET_GENESIS, MAINNET_GENESIS};
+#[cfg(unix)]
+pub use coin::write_keypair_file;
 pub use coin::{
-    check_mint, create_mint, mint_transaction, read_metadata, set_metadata, wait_for,
-    write_keypair_file, Coin, PreparedMint,
+    check_mint, create_mint, mint_transaction, read_metadata, set_metadata, wait_for, Coin,
+    PreparedMint, TOKEN_ACCOUNT_LEN,
 };
 pub use ix::{
     create_account, create_ata_idempotent, create_metadata_v3, initialize_mint2, mint_to_checked,

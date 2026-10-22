@@ -109,13 +109,6 @@ fn keypair_errors_never_echo_the_input() {
 }
 
 #[test]
-fn secret_json_round_trips() {
-    let kp = Keypair::from_seed([9u8; 32]);
-    let back = Keypair::from_json(&kp.secret_json()).unwrap();
-    assert_eq!(back.pubkey(), kp.pubkey());
-}
-
-#[test]
 fn signatures_verify_and_round_trip_base58() {
     use ed25519_dalek::{Signature as Sig, Verifier, VerifyingKey};
     let kp = Keypair::from_seed([5u8; 32]);

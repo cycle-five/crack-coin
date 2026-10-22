@@ -87,6 +87,15 @@ const [ataPda, ataBump] = PublicKey.findProgramAddressSync(
 );
 if (!ataPda.equals(ataAddress)) throw new Error("ATA derivation mismatch");
 
+// A second owner whose ATA bump is not 255, so the off-curve skip in the search is pinned.
+const lowOwner = Keypair.fromSeed(new Uint8Array(32).fill(5)).publicKey;
+const ataLowAddress = getAssociatedTokenAddressSync(mint, lowOwner);
+const [, ataLowBump] = PublicKey.findProgramAddressSync(
+  [lowOwner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+);
+if (ataLowBump === 255) throw new Error("ata_low_bump needs a bump below 255; try another seed");
+
 const [metadataAddress, metadataBump] = PublicKey.findProgramAddressSync(
   [Buffer.from("metadata"), METADATA_PROGRAM.toBuffer(), mint.toBuffer()],
   METADATA_PROGRAM,
@@ -207,6 +216,12 @@ const vectors = {
     mint: mint.toBase58(),
     address: ataAddress.toBase58(),
     bump: ataBump,
+  },
+  ata_low_bump: {
+    owner: lowOwner.toBase58(),
+    mint: mint.toBase58(),
+    address: ataLowAddress.toBase58(),
+    bump: ataLowBump,
   },
   metadata_address: {
     mint: mint.toBase58(),
