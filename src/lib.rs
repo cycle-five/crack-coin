@@ -3,19 +3,25 @@
 //! This crate never talks to mainnet. The modules arrive task by task.
 
 pub mod address;
+pub mod cluster;
 pub mod ix;
 pub mod key;
+pub mod mint;
+pub mod rpc;
 pub mod tx;
 
 pub use address::{
     associated_token_address, find_program_address, metadata_address, ASSOCIATED_TOKEN_PROGRAM,
     SYSTEM_PROGRAM, TOKEN_METADATA_PROGRAM, TOKEN_PROGRAM,
 };
+pub use cluster::{refuse_mainnet, DEFAULT_RPC_URL, DEVNET_GENESIS, MAINNET_GENESIS};
 pub use ix::{
     create_account, create_ata_idempotent, create_metadata_v3, initialize_mint2, mint_to_checked,
     update_metadata_v2, TokenInfo,
 };
 pub use key::{Hash, Keypair, Pubkey, Signature};
+pub use mint::{MintAccount, MINT_ACCOUNT_LEN};
+pub use rpc::{Devnet, TxStatus, RPC_TIMEOUT};
 
 pub use tx::{sign_transaction, AccountMeta, Instruction, SignedTx};
 
